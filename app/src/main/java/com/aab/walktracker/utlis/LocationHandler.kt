@@ -4,8 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
@@ -15,9 +15,10 @@ class LocationHandler(private val context: Context) {
 
     private val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
+    // starts location checking with given interval and location callback
     fun startLocationUpdates(interval: Long, locationCallback: LocationCallback){
         val locationRequest = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
+            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
             interval
         ).build()
 
@@ -26,9 +27,11 @@ class LocationHandler(private val context: Context) {
                 locationRequest,
                 locationCallback,
                 Looper.getMainLooper())
+            Log.i("LocationHandler", "Location updates started")
         }
     }
 
+    // checking permission for location
     private fun checkPermission(): Boolean{
         val accessFineLocation = ActivityCompat.checkSelfPermission(
             context,
@@ -37,8 +40,8 @@ class LocationHandler(private val context: Context) {
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION)
 
-        val hasFineLocationPermission = accessFineLocation != PackageManager.PERMISSION_GRANTED
-        val hasCoarseLocationPermission = accessCoarseLocation != PackageManager.PERMISSION_GRANTED
+        val hasFineLocationPermission = accessFineLocation == PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocationPermission = accessCoarseLocation == PackageManager.PERMISSION_GRANTED
 
         return hasFineLocationPermission && hasCoarseLocationPermission
     }
