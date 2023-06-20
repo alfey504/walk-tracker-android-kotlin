@@ -3,6 +3,7 @@ package com.aab.walktracker.utlis
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -13,6 +14,8 @@ import com.google.android.gms.location.Priority
 
 class LocationHandler(private val context: Context) {
 
+
+
     private val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
     // starts location checking with given interval and location callback
@@ -20,7 +23,7 @@ class LocationHandler(private val context: Context) {
         val locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_BALANCED_POWER_ACCURACY,
             interval
-        ).build()
+        ).setMinUpdateIntervalMillis(10*1000).build()
 
         if(checkPermission()){
             fusedLocationProviderClient.requestLocationUpdates(
@@ -32,7 +35,8 @@ class LocationHandler(private val context: Context) {
     }
 
     // checking permission for location
-    private fun checkPermission(): Boolean{
+    private fun checkPermission(): Boolean {
+
         val accessFineLocation = ActivityCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION)
@@ -40,8 +44,18 @@ class LocationHandler(private val context: Context) {
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION)
 
+
         val hasFineLocationPermission = accessFineLocation == PackageManager.PERMISSION_GRANTED
         val hasCoarseLocationPermission = accessCoarseLocation == PackageManager.PERMISSION_GRANTED
+
+
+        if(Build.VERSION.SDK_INT == Build.VERSION_CODES.Q){
+            val accessBackgroundLocation = ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            val hasBackgroundLocationPermission = accessBackgroundLocation == PackageManager.PERMISSION_GRANTED
+            return  hasFineLocationPermission && hasCoarseLocationPermission && hasBackgroundLocationPermission
+        }
 
         return hasFineLocationPermission && hasCoarseLocationPermission
     }
