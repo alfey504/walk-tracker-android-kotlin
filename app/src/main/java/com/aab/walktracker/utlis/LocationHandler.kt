@@ -17,6 +17,7 @@ class LocationHandler(private val context: Context) {
 
 
     private val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+    private lateinit var locationCallback: LocationCallback
 
     // starts location checking with given interval and location callback
     fun startLocationUpdates(interval: Long, locationCallback: LocationCallback){
@@ -24,6 +25,7 @@ class LocationHandler(private val context: Context) {
             Priority.PRIORITY_BALANCED_POWER_ACCURACY,
             interval
         ).setMinUpdateIntervalMillis(10*1000).build()
+        this.locationCallback = locationCallback
 
         if(checkPermission()){
             fusedLocationProviderClient.requestLocationUpdates(
@@ -58,5 +60,10 @@ class LocationHandler(private val context: Context) {
         }
 
         return hasFineLocationPermission && hasCoarseLocationPermission
+    }
+
+    // stop the location updates service
+    fun stopLocationUpdates(){
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback)
     }
 }

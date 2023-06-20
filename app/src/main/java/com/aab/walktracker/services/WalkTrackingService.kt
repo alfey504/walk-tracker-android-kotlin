@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.nfc.Tag
 import android.os.Build
 import android.os.IBinder
@@ -13,59 +15,55 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.aab.walktracker.R
 import com.aab.walktracker.utlis.LocationHandler
+import com.aab.walktracker.utlis.NotificationHandler
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationResult
 import kotlinx.coroutines.*
 
 class WalkTrackingService : Service() {
 
+    private lateinit var locationHandler: LocationHandler
+    private lateinit var broadcastReceiver: BroadcastReceiver
+
     companion object {
-        private const val NOTIFICATION_CHANNEL_ID = "LocationServiceChannel"
-        private const val NOTIFICATION_CHANNEL_NAME = "Location Service"
         private const val NOTIFICATION_ID = 123
+        const val  ACTION_STOP_SERVICE = "action_stop_service"
     }
 
     override fun onBind(intent: Intent): IBinder? {
         return null
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun createNotification(): Notification {
-        val notificationBuilder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Location Service")
-            .setContentText("Running")
-            .setSmallIcon(R.mipmap.ic_launcher) // Replace with your app's icon
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-
-        return notificationBuilder.build()
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i("WalkTrackingService", "Service started")
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        setForegroundNotification()
         startWalk()
-        CoroutineScope(Dispatchers.IO).launch {
-            checking()
-        }
+        setBroadCastReceiver()
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(broadcastReceiver)
+    }
+
+    // set a foreground notification
+    private fun setForegroundNotification(){
+        val notificationHandler = NotificationHandler()
+        notificationHandler.createNotificationChannel(this)
+        startForeground(NOTIFICATION_ID, notificationHandler.createNotification(this))
     }
 
     // start tracking the walk
     private fun startWalk(){
-        val locationHandler = LocationHandler(this)
-        val locationCallback = object : LocationCallback() {
+        locationHandler = LocationHandler(this)
+        val locationCallback = createLocationCallback()
+        locationHandler.startLocationUpdates(5000, locationCallback)
+    }
+
+    // returns an instance of LocationCallback
+    private fun createLocationCallback(): LocationCallback{
+        return object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
                 locationResult.lastLocation?.let { location ->
@@ -73,16 +71,40 @@ class WalkTrackingService : Service() {
                 }
             }
         }
-        locationHandler.startLocationUpdates(5000, locationCallback)
     }
 
-    private suspend fun checking(){
-        withContext(Dispatchers.IO){
-            while (true){
-                Log.i("WalkTrackerService-> checker", "Service is running")
-                delay(5000)
+    // sets a broadcast receiver
+    private fun setBroadCastReceiver(){
+        broadcastReceiver = createBroadcastReceiver()
+        val intentFilter = IntentFilter(ACTION_STOP_SERVICE)
+        registerReceiver(broadcastReceiver, intentFilter)
+    }
+
+    // returns an instance of BroadcastReceiver
+    private fun createBroadcastReceiver(): BroadcastReceiver{
+        return object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.action?.let { action ->
+                   handleActions(action)
+                }
             }
         }
     }
+
+    // performs a task based on the given action
+    private fun handleActions(action: String){
+        when (action) {
+            ACTION_STOP_SERVICE -> stopWalk()
+        }
+    }
+
+    // stop the location update service and stop the service
+    private fun stopWalk(){
+        locationHandler.stopLocationUpdates()
+        stopSelf()
+    }
+
+
+
 
 }

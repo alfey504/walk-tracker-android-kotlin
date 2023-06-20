@@ -24,4 +24,10 @@ class MainActivity : AppCompatActivity() {
             startService(intent)
         }
     }
+
+    private fun stopService(){
+        val intent = Intent(WalkTrackingService.ACTION_STOP_SERVICE)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
 }
