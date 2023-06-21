@@ -44,14 +44,19 @@ class WalkTrackingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(broadcastReceiver)
+        // unregister receiver adn stop location updates if not yet done so
+        try{
+            unregisterReceiver(broadcastReceiver)
+            locationHandler.stopLocationUpdates()
+        }catch (_: java.lang.Exception) {}
     }
 
     // set a foreground notification
     private fun setForegroundNotification(){
         val notificationHandler = NotificationHandler()
         notificationHandler.createNotificationChannel(this)
-        startForeground(NOTIFICATION_ID, notificationHandler.createNotification(this))
+        val foregroundNotification = notificationHandler.createNotification(this)
+        startForeground(NOTIFICATION_ID, foregroundNotification)
     }
 
     // start tracking the walk
@@ -85,26 +90,27 @@ class WalkTrackingService : Service() {
         return object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 intent?.action?.let { action ->
-                   handleActions(action)
+                   actionsHandler(action)
                 }
             }
         }
     }
 
     // performs a task based on the given action
-    private fun handleActions(action: String){
+    private fun actionsHandler(action: String){
         when (action) {
             ACTION_STOP_SERVICE -> stopWalk()
+            else -> Log.i("WalkTrackingService->actionsHandler", "Unexpected action: $action")
         }
     }
 
     // stop the location update service and stop the service
     private fun stopWalk(){
+        Log.i("WalkTrackingService", "Walk has been stopped")
+        stopForeground(STOP_FOREGROUND_REMOVE)
         locationHandler.stopLocationUpdates()
+        unregisterReceiver(broadcastReceiver)
         stopSelf()
     }
-
-
-
 
 }

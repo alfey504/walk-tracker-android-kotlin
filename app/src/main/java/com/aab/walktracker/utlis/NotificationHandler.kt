@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import com.aab.walktracker.R
-import com.aab.walktracker.services.WalkTrackingService
 
 class NotificationHandler {
 
@@ -27,7 +26,7 @@ class NotificationHandler {
         notificationManager.createNotificationChannel(channel)
     }
 
-    // creates an instance of Notification 
+    // creates an instance of Notification
     fun createNotification(context: Context): Notification {
         val notificationBuilder = NotificationCompat.Builder(context,
             NOTIFICATION_CHANNEL_ID

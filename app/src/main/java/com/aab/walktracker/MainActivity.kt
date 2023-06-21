@@ -23,6 +23,10 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, WalkTrackingService::class.java)
             startService(intent)
         }
+
+        binding.mainActivityStopWalkButton.setOnClickListener {
+            stopService()
+        }
     }
 
     private fun stopService(){
