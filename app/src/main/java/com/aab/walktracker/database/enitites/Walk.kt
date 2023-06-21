@@ -4,7 +4,7 @@ import android.location.Location
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 
-@Entity
+@Entity(tableName = "walk")
 data class Walk(
     @ColumnInfo("walk_id") val walkId: Int,
     @ColumnInfo("start_location") val startLocation: Location,
