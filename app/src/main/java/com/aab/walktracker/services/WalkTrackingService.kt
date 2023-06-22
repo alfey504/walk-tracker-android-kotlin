@@ -8,12 +8,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.location.Location
 import android.nfc.Tag
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.aab.walktracker.R
+import com.aab.walktracker.repos.WalkRepo
 import com.aab.walktracker.utlis.LocationHandler
 import com.aab.walktracker.utlis.NotificationHandler
 import com.google.android.gms.location.LocationCallback
@@ -24,6 +26,7 @@ class WalkTrackingService : Service() {
 
     private lateinit var locationHandler: LocationHandler
     private lateinit var broadcastReceiver: BroadcastReceiver
+    private var currentWalkId: Long? = null
 
     companion object {
         private const val NOTIFICATION_ID = 123
@@ -73,6 +76,9 @@ class WalkTrackingService : Service() {
                 super.onLocationResult(locationResult)
                 locationResult.lastLocation?.let { location ->
                     Log.i("WalkTrackingService", "location = ${location.latitude}, ${location.longitude}")
+                    if(currentWalkId == null){
+                        addWalkToDb(location)
+                    }
                 }
             }
         }
@@ -111,6 +117,15 @@ class WalkTrackingService : Service() {
         locationHandler.stopLocationUpdates()
         unregisterReceiver(broadcastReceiver)
         stopSelf()
+    }
+
+    private fun addWalkToDb(startLocation: Location){
+        val walkRepo = WalkRepo(this)
+        CoroutineScope(Dispatchers.IO).launch {
+            currentWalkId = walkRepo.newWalk(startLocation)
+            Log.i("WalkTrackingService->addWalkToDb", "current walk: $currentWalkId")
+        }
+
     }
 
 }
