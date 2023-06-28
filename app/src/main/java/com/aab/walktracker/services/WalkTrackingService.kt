@@ -14,19 +14,23 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.room.util.convertUUIDToByte
 import com.aab.walktracker.R
+import com.aab.walktracker.database.enitites.WalkPoints
 import com.aab.walktracker.repos.WalkRepo
 import com.aab.walktracker.utlis.LocationHandler
 import com.aab.walktracker.utlis.NotificationHandler
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationResult
 import kotlinx.coroutines.*
+import java.util.*
 
 class WalkTrackingService : Service() {
 
     private lateinit var locationHandler: LocationHandler
     private lateinit var broadcastReceiver: BroadcastReceiver
     private var currentWalkId: Long? = null
+    private var walkPoints: MutableList<WalkPoints>? = null
 
     companion object {
         private const val NOTIFICATION_ID = 123
@@ -65,6 +69,7 @@ class WalkTrackingService : Service() {
     // start tracking the walk
     private fun startWalk(){
         locationHandler = LocationHandler(this)
+        addWalkToDb()
         val locationCallback = createLocationCallback()
         locationHandler.startLocationUpdates(5000, locationCallback)
     }
@@ -76,9 +81,7 @@ class WalkTrackingService : Service() {
                 super.onLocationResult(locationResult)
                 locationResult.lastLocation?.let { location ->
                     Log.i("WalkTrackingService", "location = ${location.latitude}, ${location.longitude}")
-                    if(currentWalkId == null){
-                        addWalkToDb(location)
-                    }
+                    addWalkPointToList(location)
                 }
             }
         }
@@ -116,16 +119,48 @@ class WalkTrackingService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         locationHandler.stopLocationUpdates()
         unregisterReceiver(broadcastReceiver)
+        addWalkPointsToDb()
+        updateWalkStatusToCompleted()
         stopSelf()
     }
 
-    private fun addWalkToDb(startLocation: Location){
+    private fun addWalkToDb(){
         val walkRepo = WalkRepo(this)
         CoroutineScope(Dispatchers.IO).launch {
-            currentWalkId = walkRepo.newWalk(startLocation)
+            currentWalkId = walkRepo.newWalk()
             Log.i("WalkTrackingService->addWalkToDb", "current walk: $currentWalkId")
         }
+    }
 
+    private fun addWalkPointsToDb(){
+        val walkRepo = WalkRepo(this)
+        CoroutineScope(Dispatchers.IO).launch {
+            walkPoints?.let { walkPoints ->
+                walkRepo.addWalkPoints(walkPoints)
+            }
+        }
+    }
+
+    private fun addWalkPointToList(location: Location){
+        if(walkPoints == null){
+            walkPoints = mutableListOf()
+        }
+        val walkPoint = WalkPoints(
+            walkId = currentWalkId!!.toInt(),
+            walkPoint = location,
+            timeStamp = Date()
+        )
+        walkPoints?.add(walkPoint)
+    }
+
+    private fun updateWalkStatusToCompleted(){
+        currentWalkId?.let { currentWalkId ->
+            val walkRepo = WalkRepo(this@WalkTrackingService)
+            CoroutineScope(Dispatchers.IO).launch {
+                walkRepo.updateWalkStatus(currentWalkId.toInt(), "Complete")
+            }
+        }
+        currentWalkId = null
     }
 
 }

@@ -8,7 +8,6 @@ import com.aab.walktracker.database.enitites.WalkPoints
 
 @Dao
 interface WalkPointsDao {
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertWalkPoint(walkPoints: WalkPoints): Long
+    suspend fun insertWalkPoint(walkPoints: List<WalkPoints>): List<Long>
 }
